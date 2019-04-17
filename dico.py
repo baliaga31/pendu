@@ -1,0 +1,7 @@
+
+
+DICO=[
+  "test",
+  "toto",
+  "genetique"
+]
