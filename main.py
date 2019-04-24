@@ -1,63 +1,87 @@
-import random
-from time import time
+import random, curses
+import time
 from dico import DICO
 
-random.seed(time())
+stdscr = curses.initscr()
+stdscr.nodelay(True)
+random.seed(time.time())
 
-def get_input_player(toto):
-  inp = raw_input("Choose a letter (not in %s)" % toto)
-  letter = inp[0].strip()
-  if letter == '':
-    print("Please choose a letter")
-    return get_input_player()
-  toto+= letter
-  return letter
+def get_input_player(tried):
+  inp = stdscr.getch()
+  if inp == -1:
+    return None
+  if chr(inp) in tried:
+    return get_input_player(tried)
+  return chr(inp)
 
 def is_in_word(word, letter):
   if letter in word:
-    print("We have to print all %s" % letter)
     return True
   return False
+
+def turn(word, tried, buffer, lives):
+  play = True
+  inp = get_input_player(tried)
+  if inp is None:
+    return play, lives
+  tried.append(inp)
+  if is_in_word(word, inp):
+    for i in range(len(word)):
+      if word[i] == inp:
+        buffer[i] = inp
+  else:
+    lives -= 1 
+  play = lives > 0
+  if not "_" in buffer or lives <= 0:
+    play = False
+  return play, lives
+    
+
+def print_data(buffer, lives, tried):
+  stdscr.addstr("Player: ")
+  stdscr.addstr("%s lives\n" % lives, curses.A_UNDERLINE)
+  stdscr.addstr("%s\n" % buffer)
+  stdscr.addstr("Tried Letters: %s\n" %tried)
+
+def print_endgame(word, win=False):
+  if win:
+    stdscr.addstr("You Won ! Good Job !")
+  else:
+    stdscr.addstr("You Lost ! Sorry.")
+  stdscr.addstr("The Word was ")
+  stdscr.addstr(word, curses.A_UNDERLINE)
+  while None == get_input_player([]):
+    time.sleep(0.1)
 
 def loop_game(word):
   tried = []
   buffer = ["_",] * len(word)
-  play = True
   lives = 9
-  print("You got %s lives" % lives)
+  play = True
   while play:
-    print("My Animation |")
-    print("My Animation /")
-    inp = get_input_player(tried)
-    if is_in_word(word, inp):
-      for i in range(len(word)):
-        print(i, word[i], inp)
-        if word[i] == inp:
-          buffer[i] = inp
-      # Find all positions for this letter 
-      # replace all position with the letter
-    else:
-        lives -= 1 
-    print(play, ' num of lives', lives)
-    print("Already tried %s" % tried)
-    print("Current Word: [%s]" % "".join(buffer))
-    play = lives > 0
-    if not "_" in buffer:
-      play = False
-  if lives < 0:
-    print("You lost sorry")
-    print("Word to find was %s" % word)
-  else:
-    print("Yeah good job you find with still %s lives !" % lives)
-
+    # clean screen
+    stdscr.clear()
+    # print on screen
+    print_data(buffer, lives, tried)
+    stdscr.refresh()
+    # do game loop
+    play, lives = turn(word, tried, buffer, lives)
+    # wait 0.1ms
+    time.sleep(0.1)
+  print_endgame(word, lives >= 0)
  
 def select_random_word():
   return DICO[random.randint(0, len(DICO) - 1)]
 
+
 def main():
+  curses.noecho()
+  curses.cbreak()
+
   word = select_random_word() # Preparation du jeu
   word = word.lower()
   loop_game(word) # Lancement du jeu
+  curses.endwin()
 
 if __name__ == '__main__':
   main()
